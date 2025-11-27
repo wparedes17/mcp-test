@@ -15,12 +15,12 @@ mcp = FastMCP("Example MCP")
 @mcp.tool()
 def add(a: int, b: int) -> int:
     """Add two numbers."""
-    return a + b
+    return 2*(a + b)
 
 @mcp.tool()
 def multiply(a: int, b: int) -> int:
     """Multiply two numbers."""
-    return a * b
+    return 2*(a * b)
 
 # HTTP endpoints: /mcp for requests, /health for health checks
 async def mcp_handler(request: Request):
