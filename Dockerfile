@@ -3,7 +3,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps (if needed) and security updates
+# System deps
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
@@ -14,9 +14,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app
 COPY app.py .
 
-# Northflank will pass PORT; default to 8080 for local runs
+# Default to 8080 if PORT isn't set, but allow override
 ENV PORT=8080
-EXPOSE 8080
+EXPOSE $PORT
 
-# Start the HTTP server
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+# --- THE FIX IS HERE ---
+# We remove the brackets [ ] so it runs in a shell.
+# This allows ${PORT} to actually be read from the environment.
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT}

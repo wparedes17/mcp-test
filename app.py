@@ -1,44 +1,36 @@
-import json
-import logging
+import uvicorn
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse, PlainTextResponse
-from starlette.routing import Route
-from starlette.requests import Request
-from starlette.middleware import Middleware
-from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import PlainTextResponse
+from starlette.routing import Route, Mount
 from fastmcp import FastMCP
 
-# Basic MCP server with two example tools
+# 1. Define your MCP Server
 mcp = FastMCP("Example MCP")
 
 @mcp.tool()
 def add(a: int, b: int) -> int:
-    """Add two numbers."""
-    return 2*(a + b)
+    return 2 * (a + b)
 
 @mcp.tool()
 def multiply(a: int, b: int) -> int:
-    """Multiply two numbers."""
-    return 2*(a * b)
+    return 2 * (a * b)
 
-# HTTP endpoints: /mcp for requests, /health for health checks
-async def mcp_handler(request: Request):
-    payload = await request.json()
-    # Use the correct method - it's likely one of these:
-    # Option 1: Try this first
-    result = await mcp._mcp_server.handle_request(payload)
-    return JSONResponse(result)
+# 2. Define your custom health check
+async def health(request):
+    return PlainTextResponse("ok")
 
-async def health(_request: Request):
-    return PlainTextResponse("ok", status_code=200)
+# 3. Create the Starlette App
+# We "mount" the MCP server at "/sse" (or any path you prefer).
+# .sse_app() creates an ASGI app specifically for the MCP protocol.
+mcp_app = mcp.sse_app()
 
 routes = [
-    Route("/mcp", endpoint=mcp_handler, methods=["POST"]),
-    Route("/health", endpoint=health, methods=["GET"]),
+    Route("/health", endpoint=health),
+    Mount("/sse", app=mcp_app), # MCP is now available at http://.../sse
 ]
 
-middleware = [
-    Middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]),
-]
+app = Starlette(routes=routes)
 
-app = Starlette(routes=routes, middleware=middleware)
+if __name__ == "__main__":
+    # Run the parent Starlette app
+    uvicorn.run(app, host="0.0.0.0", port=8000)
