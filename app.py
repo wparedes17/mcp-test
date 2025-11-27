@@ -6,7 +6,6 @@ from starlette.routing import Route
 from starlette.requests import Request
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
-
 from fastmcp import FastMCP
 
 # Basic MCP server with two example tools
@@ -25,8 +24,9 @@ def multiply(a: int, b: int) -> int:
 # HTTP endpoints: /mcp for requests, /health for health checks
 async def mcp_handler(request: Request):
     payload = await request.json()
-    # Delegate to FastMCP to process the MCP message & return a response
-    result = await mcp.handle_message(payload)
+    # Use the correct method - it's likely one of these:
+    # Option 1: Try this first
+    result = await mcp._mcp_server.handle_request(payload)
     return JSONResponse(result)
 
 async def health(_request: Request):
