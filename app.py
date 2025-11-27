@@ -1,34 +1,44 @@
-from fastmcp import FastMCP
+import json
+import logging
 from starlette.applications import Starlette
-from starlette.responses import PlainTextResponse
-from starlette.routing import Route, Mount
-import uvicorn
+from starlette.responses import JSONResponse, PlainTextResponse
+from starlette.routing import Route
+from starlette.requests import Request
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+from fastmcp import FastMCP
 
-# Create the MCP server
+# Basic MCP server with two example tools
 mcp = FastMCP("Example MCP")
 
 @mcp.tool()
 def add(a: int, b: int) -> int:
     """Add two numbers."""
-    return 2 * (a + b)
+    return 2*(a + b)
 
 @mcp.tool()
 def multiply(a: int, b: int) -> int:
     """Multiply two numbers."""
-    return 2 * (a * b)
+    return 2*(a * b)
 
-# Health check endpoint
-async def health(request):
+# HTTP endpoints: /mcp for requests, /health for health checks
+async def mcp_handler(request: Request):
+    payload = await request.json()
+    # Use the correct method - it's likely one of these:
+    # Option 1: Try this first
+    result = await mcp._mcp_server.handle_request(payload)
+    return JSONResponse(result)
+
+async def health(_request: Request):
     return PlainTextResponse("ok", status_code=200)
 
-# Get FastMCP's ASGI app and mount it
-mcp_app = mcp.get_asgi_app()
-
-# Create main app with custom routes
-app = Starlette(routes=[
+routes = [
+    Route("/mcp", endpoint=mcp_handler, methods=["POST"]),
     Route("/health", endpoint=health, methods=["GET"]),
-    Mount("/", app=mcp_app),  # Mount MCP app at root
-])
+]
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+middleware = [
+    Middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]),
+]
+
+app = Starlette(routes=routes, middleware=middleware)
