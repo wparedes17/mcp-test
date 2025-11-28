@@ -4,7 +4,7 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route, Mount
 from fastmcp import FastMCP
 
-# 1. Define your MCP Server
+# 1. Define MCP Server
 mcp = FastMCP("Example MCP")
 
 @mcp.tool()
@@ -15,22 +15,23 @@ def add(a: int, b: int) -> int:
 def multiply(a: int, b: int) -> int:
     return 2 * (a * b)
 
-# 2. Define your custom health check
+# 2. Get the modern HTTP app (Fixes Deprecation Warning)
+# This sub-app internally handles "/sse" and "/messages"
+mcp_app = mcp.http_app()
+
+# 3. Define Health Check
 async def health(request):
     return PlainTextResponse("ok")
 
-# 3. Create the Starlette App
-# We "mount" the MCP server at "/sse" (or any path you prefer).
-# .sse_app() creates an ASGI app specifically for the MCP protocol.
-mcp_app = mcp.sse_app()
-
+# 4. Mount Routes
+# We mount the MCP app at "/mcp".
+# This means the SSE endpoint becomes: http://localhost:8080/mcp/sse
 routes = [
     Route("/health", endpoint=health),
-    Mount("/sse", app=mcp_app), # MCP is now available at http://.../sse
+    Mount("/mcp", app=mcp_app),
 ]
 
 app = Starlette(routes=routes)
 
 if __name__ == "__main__":
-    # Run the parent Starlette app
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
