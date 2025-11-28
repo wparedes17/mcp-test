@@ -15,23 +15,35 @@ def add(a: int, b: int) -> int:
 def multiply(a: int, b: int) -> int:
     return 2 * (a * b)
 
-# 2. Get the modern HTTP app (Fixes Deprecation Warning)
-# This sub-app internally handles "/sse" and "/messages"
+# 2. Get the HTTP app
 mcp_app = mcp.http_app()
 
 # 3. Define Health Check
 async def health(request):
     return PlainTextResponse("ok")
 
-# 4. Mount Routes
-# We mount the MCP app at "/mcp".
-# This means the SSE endpoint becomes: http://localhost:8080/mcp/sse
+# 4. Define Routes
+# We Mount "/" at the very end. This acts as a catch-all.
+# /health  -> goes to health()
+# /sse     -> goes to mcp_app
+# /messages -> goes to mcp_app
 routes = [
     Route("/health", endpoint=health),
-    Mount("/mcp", app=mcp_app),
+    Mount("/", app=mcp_app),
 ]
 
 app = Starlette(routes=routes)
+
+# 5. DEBUG: Print routes on startup so we see exactly what paths exist
+@app.on_event("startup")
+async def startup_event():
+    print("--> SERVER STARTING. REGISTERED ROUTES:", flush=True)
+    # Print main routes
+    for route in routes:
+        if isinstance(route, Route):
+            print(f"  - Path: {route.path}", flush=True)
+        elif isinstance(route, Mount):
+            print(f"  - Mount: {route.path} -> (Sub-app)", flush=True)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)
